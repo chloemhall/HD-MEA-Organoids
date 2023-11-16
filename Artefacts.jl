@@ -21,6 +21,7 @@ export findTimestamps;
 export realNeighbours;
 export extract_channel_indexes; 
 export apply_highpass_filter;
+
 # •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
 """
 Find the timestamps of recalibration, which is where we need to delete. Adds an extra 20ms gap, to create a barrier i.e. 200 pts- 100 pts either side of the recalibration timestamp. Returns a matrix named "todelete " which will cause the 
@@ -101,8 +102,6 @@ function apply_highpass_filter(data::Matrix, sample_rate::Float64, cutoff_freq::
     
     return filtered_data
 end
-
-#·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
 
 end #i.e module end
 

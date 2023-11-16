@@ -23,10 +23,11 @@ using Statistics
 using DSP
 using StatsBase
 
-export VariablesBRW4, Get_Chunks, div_ab, searchdir, VoltageConvertMeanΔxCI, StaticThresholdEvents,
-       Thresholding, ThresholdingPlots, Z0, ZW, Zplot, STExbin, STExChannel, FiltMUAremez, FilteringMatrix,
+export VariablesBRW4, Get_Chunks, div_ab, searchdir, VoltageConvertMeanΔxCI, StaticThresholdEvents, ms2frames,
+       Thresholding, ThresholdingPlots, Z0, ZW, Zplot, STExbin, STExChannel, remezFilter, FiltMUAremez, FilteringMatrix,
        ms2frames, ΔV, VoltageConvert, PositiveSaturation, donoho, FillingHolesCrux, Get_Groups, neighborgs,
-       FigureGroups, Cut_Spikes, FiltM, PTXchannel, PosT;
+       FigureGroups, Cut_Spikes, FiltM, PTXchannel, PosT, spikedetection, spikeInfo;
+
 
 # •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
 """
@@ -640,6 +641,27 @@ function FiltMUAremez( Variables::Dict{Any, Any}, cortex_ch::Vector{Int64} )
     return MUA
 end
 # •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
+#·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
+    #function ms2frames( time::Real, Variables::Dict{Any, Any} )
+function ms2frames(time, SamplingRate)
+    #SamplingRate = Variables[ "SamplingRate" ];
+    if time != 0; x = ceil( Int, ( time * SamplingRate ) / 1000 ); else; x = 1; end
+    return x
+end
+#·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
+function remezFilter(org_clean, SamplingRate)
+    lF = 150
+    fac = 10
+    HF = 3000
+    NYQ = floor(Int, SamplingRate / 2)
+    order = Int(floor((SamplingRate / lF) / 5))
+    dataOr = org_clean
+    bpass = remez((order + 1), [(0, lF - fac) => 0, (lF, HF) => 1, (HF + fac, NYQ) => 0], Hz = SamplingRate)
+    pr = [1.0]  # dims = 2 should tell the filtfilt to go rowwise
+    filtOr = mapslices(x -> filtfilt(DSP.Filters.PolynomialRatio(bpass, pr), x), dataOr, dims=2)
+    return filtOr
+end
+# •·•·•·•·
 """
     FilteringMatrix( data::Matrix{Float64}, Variables::Dict{Any, Any} ) -> datafilt::Matrix{Float64}
     using AccuraTools.FiltroMUAremez
@@ -668,11 +690,11 @@ end
 """
     ms2frames( time::Real, Variables::Dict{Any, Any} ) -> x::Float64
 """
-function ms2frames( time::Real, Variables::Dict{Any, Any} )
-    SamplingRate = Variables[ "SamplingRate" ];
-    if time != 0; x = ceil( Int, ( time * SamplingRate ) / 1000 ); else; x = 1; end
-    return x
-end
+# function ms2frames( time::Real, Variables::Dict{Any, Any} )
+#     SamplingRate = Variables[ "SamplingRate" ];
+#     if time != 0; x = ceil( Int, ( time * SamplingRate ) / 1000 ); else; x = 1; end
+#     return x
+# end
 # •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
 """
     ΔV( Variables::Dict{Any, Any}, BIN::Matrix{Float64}, ΔT::Int64 ) -> STD::Vector{Float64}
@@ -971,5 +993,60 @@ function Cut_Spikes( index_final::Vector{Int64}, MUA::Vector{Float64}, parametro
     end
     return spikes
 end
+# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
+#•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
+function spikedetection(filtered_data, SamplingRate, organoid_channels)
+    window_ms = 5 #put these variables in here like scalars. 
+    bit_ms = 2
+    distance_ms = 0.4
+    σ = 4
+    window = ms2frames(window_ms, SamplingRate)
+    bit = ms2frames(bit_ms, SamplingRate)
+    distance = ms2frames(distance_ms, SamplingRate)
+    nChs = length(organoid_channels)
+    channels = collect(1:nChs)
+    
+    parameters = Dict(
+        "window"    => window,
+        "bit"       => bit,
+        "distance"  => distance,
+        "cte"       => σ
+    )
 
+    EventsFilt = []  # returns a nested vector of the timestamps where the value is larger than the adapted threshold....
+    ThrsFilt = []
+
+    for i in channels
+        channelfilt = filtered_data[i, :]
+        thrsFilt, IndexFilt = STExChannel(channelfilt, parameters)
+        EventsFilt = push!(EventsFilt, IndexFilt)
+        ThrsFilt = push!(ThrsFilt, thrsFilt) # do I even need ThrsFilt to be stored? 
+    end
+
+    return EventsFilt #unstored ThrsFilt, but can add it back in.
+
+end 
+# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
+#function to get the number of events per chunk 
+function spikeInfo(EventsFilt, nSegs, filtered_data)
+    #want to count per channel (in this case, rows) how many events were detected. 
+    cols = [] #preallocate array # but would it be better to do rand(100) or something like this? 
+    AmpOr = []
+    SegmentSize = rand(nSegs)
+   # EventsFilt = events 
+    for e = 1:length(EventsFilt);
+        SegmentSize = push!( SegmentSize, length(EventsFilt) )
+        cols = push!( cols, length( EventsFilt[e]) ) 
+        
+        AmpIdx = EventsFilt[e,1] # creates a flat vector for channel e, of where the spike amp indexes are.   
+            for j = 1:length(AmpIdx)  #want to use the index times to find the amplitude and store it.  
+                SingleAmp = filtered_data[e, AmpIdx[j]] # gets the amp value
+                AmpOr = push!(AmpOr, SingleAmp) #makes new matrix of Amps. 
+            end    
+    end
+   
+    return cols, AmpOr, SegmentSize 
+end 
+# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
+# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
 end  #•·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·• #
