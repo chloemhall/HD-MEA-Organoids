@@ -983,8 +983,12 @@ end
           and w_pos later.
 
     """
-function Cut_Spikes( index_final::Vector{Int64}, MUA::Vector{Float64}, parametros::Dict{String, Int64} )
-    w_post = parametros[ "w_post" ]; w_pre = parametros[ "w_pre" ];
+function Cut_Spikes( index_final , MUA, SamplingRate)
+    #w_post = parametros[ "w_post" ]; w_pre = parametros[ "w_pre" ];
+    po = 4
+    pre = 1
+    w_post = ms2frames(po, SamplingRate)
+    w_pre = ms2frames(pre, SamplingRate)
     index_final = index_final[ Bool.( 1 .- ( ( index_final .+ w_post ) .> length( MUA ) ) ) ];
     index_final = index_final[ Bool.( 1 .- ( ( index_final .- w_pre ) .< 1 ) ) ];
     spikes = zeros( length( index_final ), ( w_pre + w_post + 1) );
@@ -993,18 +997,18 @@ function Cut_Spikes( index_final::Vector{Int64}, MUA::Vector{Float64}, parametro
     end
     return spikes
 end
-# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
-#•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
+# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·• #
+#•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·•·•·•·• #
 function spikedetection(filtered_data, SamplingRate, organoid_channels)
     window_ms = 5 #put these variables in here like scalars. 
     bit_ms = 2
     distance_ms = 0.4
-    σ = 4
+    σ = 5
     window = ms2frames(window_ms, SamplingRate)
     bit = ms2frames(bit_ms, SamplingRate)
     distance = ms2frames(distance_ms, SamplingRate)
     nChs = length(organoid_channels)
-    channels = collect(1:nChs)
+    #channels = collect(1:nChs) # ignore channel 1 i.e. the calCh
     
     parameters = Dict(
         "window"    => window,
@@ -1016,7 +1020,7 @@ function spikedetection(filtered_data, SamplingRate, organoid_channels)
     EventsFilt = []  # returns a nested vector of the timestamps where the value is larger than the adapted threshold....
     ThrsFilt = []
 
-    for i in channels
+    for i = 2: nChs
         channelfilt = filtered_data[i, :]
         thrsFilt, IndexFilt = STExChannel(channelfilt, parameters)
         EventsFilt = push!(EventsFilt, IndexFilt)
@@ -1026,16 +1030,24 @@ function spikedetection(filtered_data, SamplingRate, organoid_channels)
     return EventsFilt #unstored ThrsFilt, but can add it back in.
 
 end 
-# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
+# •·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·• #
+#function to get the size of this segment i.e. total data pts .... 
+function dataPts( filtered_data )
+
+    (size(filtered_data, 2))
+    return DataPts
+end 
+# •·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·• #
 #function to get the number of events per chunk 
 function spikeInfo(EventsFilt, nSegs, filtered_data)
     #want to count per channel (in this case, rows) how many events were detected. 
-    cols = [] #preallocate array # but would it be better to do rand(100) or something like this? 
+    #cols = [] #preallocate array # but would it be better to do rand(100) or something like this? 
+    cols = zeros(Int64, num_rows, 1)
     AmpOr = []
-    SegmentSize = rand(nSegs)
-   # EventsFilt = events 
+    #SegmentSize = rand(nSegs)
+   #EventsFilt = events 
     for e = 1:length(EventsFilt);
-        SegmentSize = push!( SegmentSize, length(EventsFilt) )
+       # SegmentSize = push!( SegmentSize, length(EventsFilt) )
         cols = push!( cols, length( EventsFilt[e]) ) 
         
         AmpIdx = EventsFilt[e,1] # creates a flat vector for channel e, of where the spike amp indexes are.   
@@ -1045,8 +1057,8 @@ function spikeInfo(EventsFilt, nSegs, filtered_data)
             end    
     end
    
-    return cols, AmpOr, SegmentSize 
+    return cols, AmpOr #, SegmentSize 
 end 
-# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
-# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
-end  #•·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·• #
+# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
+# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
+end  #•·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·• #
