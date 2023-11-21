@@ -538,7 +538,15 @@ function PTXchannel( channel::Vector{Float64}, parameters::Dict{String, Int64} )
     end
     return vcat( posThr... ), real_index
 end
-# •·•·•·•·•·
+# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
+"""
+    Noise-adaptive Optimal Thresholding
+        donoho( x::Vector ) -> thr::Float64
+        using Statistics
+https://www.nature.com/articles/s41598-021-93088-w#Sec2
+"""
+@inline donoho( x ) = ( median( abs.( x ) ) / 0.6745 );
+# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
 """
     STExbin( bin::Vector{Float64}, thr::Real, parameters::Dict{String, Int64} ) -> Index::Vector{Int64}
 """
@@ -589,8 +597,8 @@ function STExChannel( channel::Vector{Float64}, parameters::Dict{String, Int64} 
     bit = parameters[ "bit" ];
     σ = parameters[ "cte" ];
     index_real = [ ];
-    i = 1;
-    I = Int( ( ( ( i - 1 ) * bit ) + 1 ) ); J = Int( I + window - 1 );
+    q = 1;
+    I = Int( ( ( ( q - 1 ) * bit ) + 1 ) ); J = Int( I + window - 1 );
     thrs = [ ];
     thr = 0;
     posthr = 0;
@@ -603,8 +611,8 @@ function STExChannel( channel::Vector{Float64}, parameters::Dict{String, Int64} 
                 index_real = vcat( index_real, ( index_parcial .+ I .- 1 ) );
             end
         end
-        i = i + 1;
-        I = Int( ( ( ( i - 1 ) * bit ) + 1 ) ); J = Int( I + window - 1 );
+        q = q + 1;
+        I = Int( ( ( ( q - 1 ) * bit ) + 1 ) ); J = Int( I + window - 1 );
     end
     index_real = unique( index_real );
     if !isempty( index_real )
@@ -615,14 +623,7 @@ function STExChannel( channel::Vector{Float64}, parameters::Dict{String, Int64} 
     return vcat( thrs... ), index_real
 end
 # •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
-"""
-    Noise-adaptive Optimal Thresholding
-        donoho( x::Vector ) -> thr::Float64
-        using Statistics
-https://www.nature.com/articles/s41598-021-93088-w#Sec2
-"""
-@inline donoho( x ) = ( median( abs.( x ) ) / 0.6745 );
-# •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·• #
+
 """
     FiltMUAremez( Variables::Dict{Any, Any}, channel::Vector{Float64} -> MUA::Vector{Float64}
     using DSP
@@ -763,7 +764,8 @@ function SaturacionPositiva( Variables::Dict{String, Any}, data )
 end"""
 
 function PositiveSaturation( data::Matrix{Float64}, Variables::Dict{Any, Any} )
-    MaxAV = Float64( Variables[ "MaxAnalogValue" ] - 10 );
+    #MaxAV = Float64( Variables[ "MaxAnalogValue" ] - 10 );
+    MaxAV = 2500.0
     SamplingRate = Variables[ "SamplingRate" ];
     binsize = size( data, 2 );
     MaxVoltSatChannels = findall( vec( sum( Int.( data .>= MaxAV ), dims = 2 ) .!= 0 ) )
@@ -1003,7 +1005,7 @@ function spikedetection(filtered_data, SamplingRate, organoid_channels)
     window_ms = 5 #put these variables in here like scalars. 
     bit_ms = 2
     distance_ms = 0.4
-    σ = 5
+    σ = 7
     window = ms2frames(window_ms, SamplingRate)
     bit = ms2frames(bit_ms, SamplingRate)
     distance = ms2frames(distance_ms, SamplingRate)
@@ -1039,11 +1041,15 @@ function dataPts( filtered_data )
 end 
 # •·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·• #
 #function to get the number of events per chunk 
-function spikeInfo(EventsFilt, nSegs, filtered_data)
+function spikeInfo(EventsFilt, nSegs, filtered_data, num_rows)
     #want to count per channel (in this case, rows) how many events were detected. 
     #cols = [] #preallocate array # but would it be better to do rand(100) or something like this? 
-    cols = zeros(Int64, num_rows, 1)
-    AmpOr = []
+   # cols = zeros(Int64, num_rows, 1)
+   # AmpOr = []
+    cols = Int64[] # Initialize as a 1D array
+
+    AmpOr = Float64[] # Assuming amplitudes are Float64, adjust if necessary
+
     #SegmentSize = rand(nSegs)
    #EventsFilt = events 
     for e = 1:length(EventsFilt);
