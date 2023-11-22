@@ -1005,7 +1005,7 @@ function spikedetection(filtered_data, SamplingRate, organoid_channels)
     window_ms = 5 #put these variables in here like scalars. 
     bit_ms = 2
     distance_ms = 0.4
-    σ = 7
+    σ = 4
     window = ms2frames(window_ms, SamplingRate)
     bit = ms2frames(bit_ms, SamplingRate)
     distance = ms2frames(distance_ms, SamplingRate)
@@ -1046,7 +1046,7 @@ function spikeInfo(EventsFilt, nSegs, filtered_data, num_rows)
     #cols = [] #preallocate array # but would it be better to do rand(100) or something like this? 
    # cols = zeros(Int64, num_rows, 1)
    # AmpOr = []
-    cols = Int64[] # Initialize as a 1D array
+    cols = [] # Initialize as a 1D array
 
     AmpOr = Float64[] # Assuming amplitudes are Float64, adjust if necessary
 
