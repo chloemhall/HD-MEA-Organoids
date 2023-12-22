@@ -8,4 +8,4 @@ Note that the formula for digital - analog conversion is different in Brainwave 
 
 Artefacts.jl written by @chloemhall. 
 
-(Artefacts.jl) : Delete Recalibration Artefacts © 2022 by Chloe M. Hall is licensed under CC BY-NC-SA 4.0 
+Delete Recalibration Artefacts © 2022 by Chloe M. Hall is licensed under CC BY-NC-SA 4.0 
