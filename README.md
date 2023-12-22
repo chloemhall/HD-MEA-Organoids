@@ -7,3 +7,5 @@ CH adapted code originally written by @LBitn e.g. cleaned_script_CH.
 Note that the formula for digital - analog conversion is different in Brainwave 5 compared to past software versions. 
 
 Artefacts.jl written by @chloemhall. 
+
+Artefacts.jl © 2022 by Chloe M. Hall is licensed under CC BY-NC-SA 4.0 
