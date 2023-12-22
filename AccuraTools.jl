@@ -1001,6 +1001,7 @@ function Cut_Spikes( index_final , MUA, SamplingRate)
 end
 # •·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·• #
 #•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·••·•·•·•·•·•·•·•·•·•·•·•·• #
+#Written by CMH
 function spikedetection(filtered_data, SamplingRate, organoid_channels)
     window_ms = 5 #put these variables in here like scalars. 
     bit_ms = 2
@@ -1040,6 +1041,7 @@ function dataPts( filtered_data )
     return DataPts
 end 
 # •·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·•·• #
+#Written by CMH
 #function to get the number of events per chunk 
 function spikeInfo(EventsFilt, nSegs, filtered_data, num_rows)
     #want to count per channel (in this case, rows) how many events were detected. 
