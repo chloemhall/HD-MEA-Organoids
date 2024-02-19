@@ -1,23 +1,27 @@
 #Script to make the grids of channels.
 #to work on just one channel
 channel_to_index <- function(Ch){
+  if (Ch %% 64 == 0){
+  row.idx <- Ch/64
+  col.idx <- 64
+  }else{
   max.full.rows <- floor(Ch / 64 )
-  col.idx <- Ch - (max.full.rows*64)
   row.idx <- (max.full.rows+1)
+  col.idx <- Ch - (max.full.rows*64) }
+
   Ch.idx <- c(row.idx, col.idx)
   return(Ch.idx)
 }
 #to work on a list, not a single channel ####
 channels_to_index <- function(Ch_list) {
   max.full.rows <- floor(Ch_list / 64 )
-  col.idx <- Ch_list - (max.full.rows * 64)
+  col.idx <- Ch_list- (max.full.rows * 64)
   row.idx <- (max.full.rows + 1)
   Ch.idx <- cbind(row.idx, col.idx)
   return(Ch.idx)
 }
 # ^^ Already have this function to convert the raw number to the Ch.
 # ####
-
 # so I want to get all the channels out per organoid.
 #let's begin with organoid 2, p60
 o2.p60.ptxselect<- org2_p60_lowPTX$Channels
@@ -25,7 +29,7 @@ o2.p60.ptxselect<- org2_p60_lowPTX$Channels
 #now convert these to channel index.
 test1<- channels_to_index(o2.p60.ptxselect)
 test1 <- as.data.frame(test1)
-
+view(org2_p60_lowPTX)
 # Create a 64 x 64 matrix with zeros
 grid_matrix <- matrix(0, nrow = 64, ncol = 64)
 # Loop through each row of the data frame
